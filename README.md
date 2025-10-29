@@ -44,19 +44,25 @@ This project provides a robust pipeline for processing, indexing, and querying l
 ---
 
 ## Setup
+1. **Create 3 empty folders named:**
+   ```sh
+   documents
+   logs
+   storage
+   ```
 
-1. **Clone the repository and install dependencies:**
+3. **Clone the repository and install dependencies:**
     ```sh
     pip install -r reqs.txt
     ```
 
-2. **Configure environment variables:**
+4. **Configure environment variables:**
     - Copy `.env` and set your `OPENAI_API_KEY`.
 
-3. **Prepare your documents:**
+5. **Prepare your documents:**
     - Place your PDF, DOCX, TXT, etc. files in the `documents/` directory.
 
-4. **Start Milvus vector database:**
+6. **Start Milvus vector database:**
     - Ensure Milvus is running (see [Milvus docs](https://milvus.io/docs/install_standalone-docker.md)).
     - Example (if using Docker Compose):
       ```sh
