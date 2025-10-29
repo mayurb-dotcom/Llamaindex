@@ -151,29 +151,21 @@ class DocumentProcessor:
         return total_size / (1024 * 1024)  # Convert to MB
 
     def load_or_create_index(self) -> VectorStoreIndex:
-        """Load existing index or create new one"""
+        """Load existing index or create new one - FIXED VERSION"""
         self.logger.info("Checking for existing index...")
         
-        # Load metadata
+        # Load metadata first
         self.metadata = IndexMetadata.load(self.config.metadata_file)
         config_hash = self._compute_config_hash()
         
-        # Fix: If metadata exists but has 0 documents, check if this is valid
-        if self.metadata and self.metadata.total_documents == 0:
-            actual_doc_count = self.get_document_count()
-            if actual_doc_count > 0:
-                self.logger.warning(f"Metadata shows 0 documents but found {actual_doc_count} documents. This may need reindexing.")
-                # You can choose to force reindex here or continue
-                # For now, we'll continue but log the issue
-        
-        # Check if we can load existing index
-        can_load_existing = (
+        # Check if we should load existing index
+        should_load_existing = (
             not self.force_reindex and 
-            self.metadata and 
+            self.metadata is not None and
             not self.metadata.needs_reindex(self.config.documents_dir, config_hash)
         )
         
-        if can_load_existing:
+        if should_load_existing:
             try:
                 self.logger.info("Loading existing index from storage...")
                 console.print("[yellow]Loading existing index...[/yellow]")
@@ -184,10 +176,10 @@ class DocumentProcessor:
                     token=self.config.milvus_token if self.config.milvus_token else None,
                     collection_name=self.config.milvus_collection_name,
                     dim=1536,
-                    overwrite=False  # Don't overwrite existing collection
+                    overwrite=False
                 )
                 
-                # Check if storage files exist before trying to load
+                # Check if storage files exist
                 storage_files_exist = (
                     (self.config.persist_dir / "docstore.json").exists() and
                     (self.config.persist_dir / "index_store.json").exists() and
@@ -195,10 +187,15 @@ class DocumentProcessor:
                 )
                 
                 if not storage_files_exist:
-                    self.logger.warning("Storage files not found, creating new index...")
+                    self.logger.warning("Storage files not found, will create new index")
                     raise FileNotFoundError("Storage files not found")
                 
-                # Create storage context - this will load existing files
+                # Verify Milvus collection exists
+                if not utility.has_collection(self.config.milvus_collection_name):
+                    self.logger.warning("Milvus collection not found, will create new index")
+                    raise ValueError("Milvus collection not found")
+                
+                # Create storage context
                 storage_context = StorageContext.from_defaults(
                     vector_store=vector_store,
                     persist_dir=str(self.config.persist_dir)
@@ -207,7 +204,14 @@ class DocumentProcessor:
                 # Load index
                 self.index = load_index_from_storage(storage_context)
                 
-                self.logger.info("Loaded existing index")
+                # Verify index loaded properly by checking nodes
+                if hasattr(self.index, '_vector_store') and self.index._vector_store:
+                    self.logger.info("Index loaded successfully with vector store")
+                else:
+                    self.logger.warning("Index loaded but vector store issue detected")
+                    raise ValueError("Index loading issue")
+                
+                self.logger.info(f"Loaded existing index with {self.metadata.total_chunks} chunks")
                 console.print(f"[green]SUCCESS[/green] Loaded existing index with {self.metadata.total_chunks} chunks")
                 
                 return self.index
@@ -215,8 +219,9 @@ class DocumentProcessor:
             except Exception as e:
                 self.logger.warning(f"Failed to load existing index: {e}. Creating new index...")
                 console.print(f"[yellow]Failed to load existing index: {e}. Creating new one...[/yellow]")
+                # Continue to create new index
         
-        # Create new index
+        # Create new index if loading failed or conditions not met
         return self.create_new_index(config_hash)
         
     def clear_storage(self):

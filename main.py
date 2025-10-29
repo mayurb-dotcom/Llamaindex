@@ -95,7 +95,7 @@ class QueryExecutor:
 
 
 def main():
-    """Main query execution with robust error handling"""
+    """Main query execution with robust error handling - FIXED VERSION"""
     console.print("\n[bold blue]LlamaIndex Query System[/bold blue]\n")
     
     try:
@@ -106,13 +106,27 @@ def main():
         logger.info("Initializing query system...")
         console.print("[yellow]Initializing query engine...[/yellow]")
         
-        # Load processor
-        processor = DocumentProcessor(config)
-        estimated_document_count = processor.get_document_count()
-        if config.enable_streaming and estimated_document_count > 10:
-            processor.process_large_document_set()
+        # Load processor with force_reindex=False to prevent reprocessing
+        processor = DocumentProcessor(config, force_reindex=False)
+        
+        # Check if we have an existing index first
+        metadata_exists = config.metadata_file.exists()
+        storage_exists = (
+            (config.persist_dir / "docstore.json").exists() and
+            (config.persist_dir / "index_store.json").exists()
+        )
+        
+        if metadata_exists and storage_exists:
+            console.print("[green]✓[/green] Existing index found, loading...")
+            processor.load_or_create_index()  # This will only process if changes detected
         else:
-            processor.load_or_create_index()
+            console.print("[yellow]No existing index found, creating new one...[/yellow]")
+            # Only use streaming for truly large document sets
+            estimated_docs = processor.get_document_count()
+            if config.enable_streaming and estimated_docs > config.large_document_threshold:
+                processor.process_large_document_set()
+            else:
+                processor.load_or_create_index()
         
         # Create query executor
         executor = QueryExecutor(processor)

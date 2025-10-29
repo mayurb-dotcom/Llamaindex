@@ -1,5 +1,6 @@
 import json
 import hashlib
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -34,7 +35,7 @@ class IndexMetadata(BaseModel):
             with open(file_path, 'r') as f:
                 return cls(**json.load(f))
         except Exception as e:
-            print(f"Error loading metadata: {e}")
+            logging.error(f"Error loading metadata: {e}")
             return None
     
     def save(self, file_path: Path):
@@ -43,29 +44,47 @@ class IndexMetadata(BaseModel):
             json.dump(self.model_dump(), f, indent=2)
     
     def needs_reindex(self, documents_dir: Path, config_hash: str) -> bool:
-        """Check if reindexing is needed"""
+        """Check if reindexing is needed - FIXED VERSION"""
         # Config changed
         if self.config_hash != config_hash:
+            logging.info(f"Config changed: {self.config_hash} -> {config_hash}")
             return True
+        
+        # Check if documents directory exists
+        if not documents_dir.exists():
+            logging.warning(f"Documents directory not found: {documents_dir}")
+            return False
         
         # Get current documents
-        current_files = {str(f.relative_to(documents_dir)): f 
-                        for f in documents_dir.rglob('*') if f.is_file()}
+        supported_extensions = {'.pdf', '.txt', '.docx', '.doc', '.md', '.pptx', '.ppt'}
+        current_files = {}
+        for f in documents_dir.rglob('*'):
+            if f.is_file() and f.suffix.lower() in supported_extensions:
+                rel_path = str(f.relative_to(documents_dir))
+                current_files[rel_path] = f
         
-        # Check for new or modified documents
-        for rel_path, file_path in current_files.items():
-            file_hash = self._compute_file_hash(file_path)
-            
+        # Check for new documents
+        for rel_path in current_files:
             if rel_path not in self.documents:
-                return True  # New document
-            
-            if self.documents[rel_path].file_hash != file_hash:
-                return True  # Modified document
+                logging.info(f"New document detected: {rel_path}")
+                return True
+        
+        # Check for modified documents
+        for rel_path, file_path in current_files.items():
+            if rel_path in self.documents:
+                current_hash = self._compute_file_hash(file_path)
+                stored_hash = self.documents[rel_path].file_hash
+                if current_hash != stored_hash:
+                    logging.info(f"Document modified: {rel_path}")
+                    return True
         
         # Check for deleted documents
-        if len(self.documents) != len(current_files):
-            return True
+        for rel_path in self.documents:
+            if rel_path not in current_files:
+                logging.info(f"Document deleted: {rel_path}")
+                return True
         
+        logging.info("No changes detected, using existing index")
         return False
     
     @staticmethod

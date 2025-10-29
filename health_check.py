@@ -3,6 +3,7 @@ from rich.console import Console
 from rich.table import Table
 from pymilvus import connections, utility
 import openai
+from llama_index.vector_stores.milvus import MilvusVectorStore
 
 from config import Config
 from logger_config import setup_logger
@@ -22,12 +23,20 @@ def check_openai(api_key: str) -> tuple[bool, str]:
         return False, str(e)
 
 
-def check_milvus(host: str, port: int) -> tuple[bool, str]:
-    """Check Milvus server connectivity"""
+def check_milvus(config) -> tuple[bool, str]:
+    """Check Milvus server connectivity - SIMPLE VERSION"""
     try:
-        connections.connect(alias="health_check", host=host, port=port, timeout=10)
+        # Use the exact same connection as your main app
+        connections.connect(
+            alias="default",
+            host=config.milvus_host,
+            port=config.milvus_port,
+            timeout=30
+        )
+        
+        # Verify by listing collections
         collections = utility.list_collections()
-        connections.disconnect("health_check")
+        connections.disconnect("default")
         return True, f"Connected ({len(collections)} collections)"
     except Exception as e:
         return False, str(e)
@@ -87,8 +96,8 @@ def main():
             msg
         )
         
-        # Check Milvus Server
-        ok, msg = check_milvus(config.milvus_host, config.milvus_port)
+        # Check Milvus Server - FIXED
+        ok, msg = check_milvus(config)
         table.add_row(
             "Milvus Server",
             "[green]OK[/green]" if ok else "[red]FAIL[/red]",

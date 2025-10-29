@@ -67,6 +67,15 @@ def display_chunks():
         
         console.print(stats_table)
         console.print()
+
+        # After displaying chunks, add this diagnostic:
+        if nodes:
+            chunk_sizes = [len(node.text) for node in nodes]
+            console.print(f"\n[bold]Chunk Size Analysis:[/bold]")
+            console.print(f"  Min: {min(chunk_sizes)} chars")
+            console.print(f"  Max: {max(chunk_sizes)} chars") 
+            console.print(f"  Avg: {sum(chunk_sizes) // len(chunk_sizes)} chars")
+            console.print(f"  Config: {config.chunk_size} chars (configured)")
         
         # Display chunks
         for i, node in enumerate(nodes, 1):
