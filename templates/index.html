@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LlamaIndex</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .query-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .query-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .query-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .query-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        .query-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .query-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .answer {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .answer h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .sources {
+            margin-top: 20px;
+        }
+
+        .sources h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .source-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .source-item .source-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .source-item .source-score {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        .badge-multimodal {
+            background: #667eea;
+            color: white;
+        }
+
+        .meta-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .meta-item {
+            text-align: center;
+        }
+
+        .meta-item .label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .meta-item .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 LlamaIndex</h1>
+            <p>Enhanced with multi-modal processing (GPT-4 Vision)</p>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Total Documents</h3>
+                    <p>{{ doc_stats.get('total_documents', 0) }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Multi-Modal Documents</h3>
+                    <p>{{ doc_stats.get('multimodal_documents', 0) }}</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Chunks</h3>
+                    <p>{{ doc_stats.get('total_chunks', 0) }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="query-section">
+            <h2>Ask a Question</h2>
+            <textarea 
+                id="queryInput" 
+                class="query-input" 
+                rows="3" 
+                placeholder="Enter your question here..."
+            ></textarea>
+            <button id="queryButton" class="query-button">Search Documents</button>
+            
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Processing your query...</p>
+            </div>
+            
+            <div id="error" class="error"></div>
+        </div>
+
+        <div id="resultSection" class="result-section">
+            <div class="answer">
+                <h2>Answer</h2>
+                <div id="answerContent"></div>
+            </div>
+
+            <div class="sources">
+                <h3>📚 Sources</h3>
+                <div id="sourcesContent"></div>
+            </div>
+
+            <div class="meta-info">
+                <div class="meta-item">
+                    <div class="label">Execution Time</div>
+                    <div class="value" id="execTime">-</div>
+                </div>
+                <div class="meta-item">
+                    <div class="label">Input Tokens</div>
+                    <div class="value" id="inputTokens">-</div>
+                </div>
+                <div class="meta-item">
+                    <div class="label">Output Tokens</div>
+                    <div class="value" id="outputTokens">-</div>
+                </div>
+                <div class="meta-item">
+                    <div class="label">Total Cost</div>
+                    <div class="value" id="totalCost">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const queryInput = document.getElementById('queryInput');
+        const queryButton = document.getElementById('queryButton');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const resultSection = document.getElementById('resultSection');
+        const answerContent = document.getElementById('answerContent');
+        const sourcesContent = document.getElementById('sourcesContent');
+
+        queryButton.addEventListener('click', async () => {
+            const query = queryInput.value.trim();
+            
+            if (!query) {
+                showError('Please enter a question');
+                return;
+            }
+
+            // Reset UI
+            error.style.display = 'none';
+            resultSection.style.display = 'none';
+            loading.style.display = 'block';
+            queryButton.disabled = true;
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Query failed');
+                }
+
+                const data = await response.json();
+                displayResults(data);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                loading.style.display = 'none';
+                queryButton.disabled = false;
+            }
+        });
+
+        // Allow Enter key to submit (Shift+Enter for new line)
+        queryInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                queryButton.click();
+            }
+        });
+
+        function displayResults(data) {
+            // Display answer
+            answerContent.innerHTML = marked.parse(data.answer);
+
+            // Display sources
+            sourcesContent.innerHTML = data.sources.map((source, index) => `
+                <div class="source-item">
+                    <div class="source-name">
+                        ${index + 1}. ${source.file}${source.page !== 'N/A' ? ` (Page ${source.page})` : ''}
+                        ${source.is_multimodal ? '<span class="badge badge-multimodal">🎨 Multi-modal</span>' : ''}
+                    </div>
+                    ${source.score ? `<div class="source-score">Relevance: ${source.score.toFixed(3)}</div>` : ''}
+                </div>
+            `).join('');
+
+            // Display metadata
+            document.getElementById('execTime').textContent = `${data.execution_time.toFixed(2)}s`;
+            document.getElementById('inputTokens').textContent = data.token_info.input_tokens;
+            document.getElementById('outputTokens').textContent = data.token_info.output_tokens;
+            document.getElementById('totalCost').textContent = `$${data.cost_info.total_cost.toFixed(4)}`;
+
+            resultSection.style.display = 'block';
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+    </script>
+    
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</body>
+</html>

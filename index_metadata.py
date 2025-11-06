@@ -10,21 +10,31 @@ from pydantic import BaseModel
 class DocumentMetadata(BaseModel):
     """Metadata for a processed document"""
     file_path: str
+    file_name: str  # ADDED
     file_hash: str
     file_size: int
     processed_at: str
     num_chunks: int
+    processing_method: str = "standard"  # ADDED with default
 
 
 class IndexMetadata(BaseModel):
     """Metadata for the entire index"""
-    created_at: str
-    last_updated: str
+    created_at: str = ""  # ADDED default
+    last_updated: str = ""  # ADDED default
     version: str = "1.0.0"
     total_documents: int = 0
     total_chunks: int = 0
     documents: Dict[str, DocumentMetadata] = {}
     config_hash: str = ""
+    
+    def __init__(self, **data):
+        """Initialize with timestamps"""
+        if 'created_at' not in data or not data['created_at']:
+            data['created_at'] = datetime.now().isoformat()
+        if 'last_updated' not in data or not data['last_updated']:
+            data['last_updated'] = datetime.now().isoformat()
+        super().__init__(**data)
     
     @classmethod
     def load(cls, file_path: Path) -> Optional['IndexMetadata']:
@@ -40,11 +50,15 @@ class IndexMetadata(BaseModel):
     
     def save(self, file_path: Path):
         """Save metadata to file"""
+        # Update last_updated timestamp
+        self.last_updated = datetime.now().isoformat()
+        
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         with open(file_path, 'w') as f:
             json.dump(self.model_dump(), f, indent=2)
     
     def needs_reindex(self, documents_dir: Path, config_hash: str) -> bool:
-        """Check if reindexing is needed - FIXED VERSION"""
+        """Check if reindexing is needed"""
         # Config changed
         if self.config_hash != config_hash:
             logging.info(f"Config changed: {self.config_hash} -> {config_hash}")

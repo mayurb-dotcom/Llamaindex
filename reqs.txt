@@ -1,20 +1,48 @@
-# Core LlamaIndex - handles ALL document processing
-llama-index-core>
+# Core LlamaIndex Framework
+llama-index-core
 llama-index-embeddings-openai
 llama-index-llms-openai
 llama-index-vector-stores-milvus
 
-# Vector database
+# Multi-Modal Support (GPT-4 Vision)
+llama-index-multi-modal-llms-openai
+llama-index-readers-file
+llama-index-readers-docling
+
+# Vector Database
 pymilvus
 
 # LLM & Embeddings
 openai
 
-# Configuration & validation
+# Configuration & Validation
 pydantic
 python-dotenv
 
-# Utilities
+# Terminal UI & Rich Output
 rich
+
+# Retry Logic & Resilience
 tenacity
+
+# System Resource Monitoring
 psutil
+
+# Image Processing & PDF Extraction
+pymupdf          # PDF image extraction
+pillow           # Image manipulation
+pytesseract      # OCR for scanned documents
+opencv-python    # Image processing utilities
+
+# LLM Observability & Tracking (Optional)
+langsmith
+langchain
+
+# Data Handling
+numpy            # Array operations for embeddings
+
+# FastAPI Web Application
+fastapi
+uvicorn[standard]
+jinja2
+python-multipart
